@@ -5,7 +5,7 @@ Static GitHub Pages site. Live at https://ginahu817.github.io
 ## Posting a new paper blog
 When the user says "post my blog" / gives a new HTML file (usually in ~/Desktop/paper/):
 1. Run: `python3 scripts/publish.py <path/to/post.html> --paper-url <arXiv or paper link>`
-   - Add `--date YYYY-MM-DD` if not today; `--slug` to set the URL name.
+   - Always pass a short `--slug` (e.g. `bert`, `attention-is-all-you-need`); add `--date YYYY-MM-DD` if not today.
    - Use `--no-push` to preview first, then open `posts/<slug>.html` / `index.html` in a browser.
 2. The script extracts the post from Claude artifact exports, wraps it in the site template,
    updates `posts.json` + `index.html`, commits, and pushes. Pages redeploys in ~1 min.
