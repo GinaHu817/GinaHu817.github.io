@@ -1,0 +1,440 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Foundation Models: The Ground Everything Is Being Built On (and Why It Had Better Not Crack) · Gina's Paper Notes</title>
+<meta name="description" content="I read Stanford&#x27;s giant report on foundation models. It&#x27;s part tech roadmap, part warning label, and it left me with one nagging question: who&#x27;s actually going to pay for the good stuff?">
+<style>
+  .site-nav { max-width: 680px; margin: 0 auto 28px; font-family: system-ui, sans-serif; font-size: 13px; }
+  .site-nav a { color: #4361ee; text-decoration: none; }
+  .site-nav a:hover { text-decoration: underline; }
+  .paper-link { max-width: 680px; margin: 0 auto 0; font-family: system-ui, sans-serif; font-size: 13px; }
+</style>
+</head>
+<body>
+<nav class="site-nav"><a href="../index.html">&larr; All paper notes</a></nav>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #fafaf8;
+    font-family: 'Georgia', serif;
+    color: #1a1a1a;
+    padding: 40px 20px;
+  }
+  .post {
+    max-width: 680px;
+    margin: 0 auto;
+  }
+  .tag {
+    font-family: system-ui, sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: #4361ee;
+    margin-bottom: 14px;
+  }
+  h1 {
+    font-size: 32px;
+    font-weight: 700;
+    line-height: 1.25;
+    margin-bottom: 12px;
+    color: #111;
+  }
+  .subtitle {
+    font-size: 18px;
+    color: #555;
+    font-style: italic;
+    margin-bottom: 20px;
+    line-height: 1.5;
+  }
+  .meta {
+    font-family: system-ui, sans-serif;
+    font-size: 12px;
+    color: #aaa;
+    margin-bottom: 36px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #e5e5e5;
+  }
+  p {
+    font-size: 17px;
+    line-height: 1.8;
+    margin-bottom: 22px;
+    color: #222;
+  }
+  h2 {
+    font-size: 22px;
+    font-weight: 700;
+    margin: 40px 0 14px;
+    color: #111;
+  }
+  h3 {
+    font-family: system-ui, sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    margin: 28px 0 10px;
+    color: #333;
+  }
+  ul, ol {
+    margin: 0 0 22px 24px;
+  }
+  li {
+    font-size: 17px;
+    line-height: 1.75;
+    margin-bottom: 8px;
+    color: #222;
+  }
+  .callout {
+    background: #eef2ff;
+    border-left: 4px solid #4361ee;
+    border-radius: 0 8px 8px 0;
+    padding: 14px 18px;
+    margin: 24px 0;
+    font-size: 16px;
+    line-height: 1.7;
+    color: #1e3a8a;
+  }
+  .aside {
+    background: #fff8e6;
+    border-left: 4px solid #f2a900;
+    border-radius: 0 8px 8px 0;
+    padding: 14px 18px;
+    margin: 24px 0;
+    font-size: 16px;
+    line-height: 1.7;
+    color: #6b4a00;
+  }
+  .concept {
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin: 14px 0;
+    font-size: 15px;
+    line-height: 1.7;
+    border: 1px solid #e5e5e5;
+  }
+  .concept b {
+    font-family: system-ui, sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: #4361ee;
+    display: block;
+    margin-bottom: 4px;
+  }
+  .concept ul { margin: 6px 0 0 20px; }
+  .concept li { font-size: 15px; margin-bottom: 2px; }
+  .summary {
+    background: #111;
+    color: #eee;
+    border-radius: 10px;
+    padding: 20px 22px;
+    margin: 28px 0;
+  }
+  .summary h2 { color: #fff; margin-top: 0; }
+  .summary li { color: #ddd; font-size: 16px; }
+  .closing {
+    margin-top: 40px;
+    padding-top: 24px;
+    border-top: 1px solid #e5e5e5;
+    font-size: 15px;
+    color: #666;
+    font-style: italic;
+    line-height: 1.8;
+  }
+  code {
+    font-family: monospace;
+    background: #f1f5f9;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 14px;
+    color: #334155;
+  }
+</style>
+
+<div class="post">
+
+  <div class="tag">Paper Notes · AI</div>
+
+  <h1>Foundation Models: The Ground Everything Is Being Built On (and Why It Had Better Not Crack)</h1>
+
+  <div class="subtitle">I read Stanford's giant report on foundation models. It's part tech roadmap, part warning label, and it left me with one nagging question: who's actually going to pay for the good stuff?</div>
+
+  <div class="meta">October 2026 &nbsp;·&nbsp; 10 min read</div>
+
+  <p>Last time I wrote about "Attention Is All You Need," the paper that gave us the Transformer. This time I went bigger. Much bigger. <em>On the Opportunities and Risks of Foundation Models</em> is a 200-page report from Stanford that tries to map out everything about the models built on top of that architecture: what they can do, what could go wrong, and what we should be working on next.</p>
+
+  <p>It's a lot. So here's my tour, with my own two cents (and a few laughs) along the way.</p>
+
+  <h2>Wait, One Thing I Forgot Last Time</h2>
+
+  <p>Before we get into foundation models, I owe you a quick add-on to the Transformer post. I skipped one small but important piece: the <strong>residual connection</strong>. In the Transformer diagram, it's the box labeled <em>"Add &amp; Norm"</em> that shows up after every attention and feed-forward block.</p>
+
+  <p>The idea is simple. Instead of a sub-layer replacing its input, it adds its output <em>on top of</em> the input, and the sum gets normalized: <code>LayerNorm(x + Sublayer(x))</code>. Why bother?</p>
+
+  <ul>
+    <li><strong>Fewer vanishing gradients.</strong> The gradient gets a "shortcut" back through the network, so deep stacks still train.</li>
+    <li><strong>Easier learning.</strong> Each sub-layer only has to learn a <em>correction</em> to the input, not rebuild everything from scratch.</li>
+    <li><strong>Information preservation.</strong> The original signal always survives, even if a layer turns out to be useless.</li>
+  </ul>
+
+  <p>And one more piece: near the top of the decoder there's <strong>cross-attention</strong>, the step where the decoder looks back at the encoder. The <em>Queries</em> come from the decoder, while the <em>Keys and Values</em> come from the encoder's output. Basically, the decoder asks "what in the source sentence matters for the word I'm about to write?" and the encoder answers.</p>
+
+  <p>Okay, debt paid. On to the main event.</p>
+
+  <h2>Two Big Words: Emergence and Homogenization</h2>
+
+  <p>The report organizes the whole story around two ideas.</p>
+
+  <div class="concept">
+    <b>Emergence</b>
+    The model's behavior is <em>induced</em>, not explicitly built. Nobody wrote code for in-context learning; it just showed up once models got big enough. The catch: new capabilities and new risks emerge <em>together</em>. You don't get to pick only the nice surprises.
+  </div>
+
+  <div class="concept">
+    <b>Homogenization</b>
+    More and more AI systems are built on the same few models. That's what a foundation model is: one base model, adapted to tons of downstream tasks.
+  </div>
+
+  <p>And the name "foundation" is chosen on purpose. A foundation is the thing you really, really want to be stable and safe, because everything else is standing on it. If it has a crack, every building on top inherits that crack.</p>
+
+  <div class="callout">
+    Homogenization is great for efficiency (improve one model, everything improves) and scary for safety (break one model, everything breaks).
+  </div>
+
+  <h2>What Should Matter Going Forward</h2>
+
+  <p>The authors point to a few priorities for the future:</p>
+
+  <ul>
+    <li><strong>De-risking the foundation model itself</strong>, since it sits underneath so many downstream tasks.</li>
+    <li><strong>Bringing academia back in.</strong> Building foundation models right now is a very commercial game, and universities are mostly priced out because training costs are huge. One proposed fix: a government-funded public cloud, so academic and industry researchers can both take part.</li>
+    <li><strong>Not leaving underprivileged people behind.</strong> If development is purely profit-driven, the people who can't pay are the easiest to ignore.</li>
+    <li><strong>Better evaluation metrics</strong> for downstream tasks.</li>
+  </ul>
+
+  <h2>Part 1: Capabilities, or What These Models Can (and Can't Yet) Do</h2>
+
+  <h3>🗣️ Language</h3>
+
+  <p>Language is where foundation models are most mature, and still there are four big open problems:</p>
+
+  <ol>
+    <li><strong>Being more like humans.</strong> A kid learns language from relatively little data. These models need a <em>mountain</em> of it.</li>
+    <li><strong>Flexibility.</strong> A model is basically frozen once training is done. Humans keep learning; the model doesn't.</li>
+    <li><strong>The "system" problem.</strong> Humans use grammar and structure. But if you bake in too much structure, you end up back at traditional NLP and lose the flexibility that made foundation models great in the first place.</li>
+    <li><strong>Bias toward majority languages.</strong> Models drift toward whatever language has the most data. Out of roughly 6,000 languages in the world, only about 100 are handled well by LLMs.</li>
+  </ol>
+
+  <div class="callout">
+    A line from the report I liked: generation is the main route to language understanding. Learning to <em>produce</em> language turns out to be how models learn to <em>understand</em> it.
+  </div>
+
+  <h3>👁️ Vision</h3>
+
+  <p>Vision foundation models are still in an early stage. The big selling point is that self-supervised training means <strong>no labels needed</strong>. The end goal is <strong>physical scene understanding and temporal reasoning</strong>, i.e. understanding what's in a scene and how it changes over time. (My personal guess at where that's all heading: self-driving cars. The paper doesn't say so outright. That's just me reading between the lines, HAHA.)</p>
+
+  <p>The report highlights three challenging research areas:</p>
+
+  <ul>
+    <li>Healthcare</li>
+    <li>Embodied agents</li>
+    <li>Mobile and consumer applications</li>
+  </ul>
+
+  <p>What makes them hard isn't only the technology. Deepfakes and privacy concerns hang over all three.</p>
+
+  <p>On top of that, there are two technical challenges:</p>
+
+  <ol>
+    <li><strong>Compute cost.</strong> Humans process visual info continuously over time, but a foundation model has to capture long-range temporal relationships, which gets expensive fast.</li>
+    <li><strong>Broken metrics.</strong> Standard generation metrics have been shown to be flawed: they give biased estimates, and they depend on assumptions (like the data being Gaussian) that often don't hold.</li>
+  </ol>
+
+  <h3>🤖 Robotics</h3>
+
+  <ul>
+    <li>Mostly theory today; the move to practice is still ahead of us.</li>
+    <li>Safety is a big deal. We need <strong>interpretable safety boundaries</strong>, because a robot that's "usually fine" is not fine.</li>
+    <li>There's not enough data.</li>
+    <li>Current foundation models aren't enough on their own, because robotics is a <strong>closed-loop problem</strong>: a robot's actions change what it sees next. That's reinforcement learning territory, not "predict the next token from a fixed dataset."</li>
+  </ul>
+
+  <h3>🧩 Reasoning and Search</h3>
+
+  <ol>
+    <li>Foundation models are actually a good fit here, thanks to their ability to generalize and how universal they are.</li>
+    <li>But there's a lack of annotated data, so models tend to just give the <em>next low-level step</em> instead of seeing the big plan.</li>
+    <li>What the future needs: a standard recipe (an SOP, basically) for <strong>synthetic self-supervised reasoning tasks</strong>, <strong>human-in-the-loop interactive tools</strong>, and <strong>models that learn abstract plans</strong>.</li>
+  </ol>
+
+  <div class="aside">
+    📌 Note to self: this feels like a great research direction. How do you design that SOP, and how do you break an abstract plan down into reasoning steps? I want to find some papers on this.
+  </div>
+
+  <h3>💬 Interaction</h3>
+
+  <ul>
+    <li>In the future, the line between <em>developer</em> and <em>user</em> of an LLM gets blurry. Users will need the skills to check how robust a model is and to mitigate bias, which may come from the data the foundation model was trained on.</li>
+    <li>Prompt engineering and reliability are still open problems.</li>
+  </ul>
+
+  <h3>🧠 The Philosophy of "Understanding"</h3>
+
+  <p>Does the model <em>understand</em>? Behavioral tests (like coding accuracy) aren't perfect at answering that. What matters more is the <strong>process</strong>: the notes, the transcript, the AI's log of how it got there. That's why tools like <strong>probing</strong> and <strong>causal interventions on internal representations</strong> matter so much. You open up the hood instead of only timing the lap.</p>
+
+  <h2>Part 2: Applications, or the Part That Got Me Thinking</h2>
+
+  <p>The report focuses on three fields: <strong>education, law, and healthcare</strong>. These are pillars of society, and they all suffer from a lack of data, which foundation models could help with a lot.</p>
+
+  <ul>
+    <li><strong>Healthcare</strong> data is usually multimodal: text, video, images, all mixed together.</li>
+    <li><strong>Law</strong> is hard because it's tough to build a representative model that holds up from case to case.</li>
+  </ul>
+
+  <div class="callout">
+    Here's my honest reaction: if this works, it's a ground-breaking benefit. But <em>who's going to push it?</em> For profit-driven companies, the returns here are small compared to the enormous cost of building it. To me, that motivation gap is the biggest challenge of all.
+  </div>
+
+  <h2>Part 3: Technology, or What's Under the Hood</h2>
+
+  <h3>Modeling</h3>
+  <ul>
+    <li>Attention cost grows <strong>quadratically</strong> with sequence length: <code>O(n²)</code>. Double the input, quadruple the cost.</li>
+    <li>There's a constant <strong>expressivity vs. efficiency</strong> trade-off.</li>
+  </ul>
+
+  <h3>Training (the future)</h3>
+  <ul>
+    <li><strong>Goal-directed training</strong>.</li>
+    <li>Models that work out of the box on <em>any</em> kind of data, instead of needing domain-specific recipes for vision, speech, and so on.</li>
+  </ul>
+
+  <h3>Adaptation</h3>
+  <p>How you adapt a foundation model to your task comes down to three factors:</p>
+  <ul>
+    <li>Your <strong>compute budget</strong></li>
+    <li>Whether you have <strong>access to the model's gradients</strong></li>
+    <li>How much <strong>task data</strong> you have</li>
+  </ul>
+  <p>Plus two problems to solve: models <strong>regurgitating</strong> (spitting out memorized training data), and <strong>catastrophic forgetting</strong> (learning a new task and promptly forgetting the old one).</p>
+
+  <h3>Evaluation</h3>
+  <div class="callout" style="font-size:18px;">
+    "When a measure becomes a target, it ceases to be a good measure." — Goodhart's Law
+  </div>
+  <p>This one really stuck with me. Once everyone is optimizing for a benchmark, the benchmark stops telling you what you actually wanted to know.</p>
+
+  <h3>Systems</h3>
+  <p>A sobering stat: the compute used to train models grows about <strong>4× every year</strong>, while hardware improves about <strong>4× every 4 years</strong>. That gap isn't sustainable forever.</p>
+
+  <h3>Data</h3>
+  <p>The authors list four data needs:</p>
+  <ul>
+    <li>Data management at scale</li>
+    <li>Support for heterogeneous sources</li>
+    <li>Data governance</li>
+    <li>Data quality monitoring</li>
+  </ul>
+  <p>A <strong>data hub</strong> could be the answer, but it raises open questions. Example: how do you support data versioning while keeping old data around for reproducibility, so that when a deployed model turns out to have a problem, you can trace it back?</p>
+
+  <h3>Security and Privacy</h3>
+  <p>Foundation models can memorize private data and can be hit by data poisoning. But there's an upside too: pretraining on <em>public</em> data means sensitive tasks like healthcare may need <em>less</em> private data.</p>
+
+  <h3>Robustness</h3>
+  <p>Pretraining on diverse data helps with many kinds of distribution shift.</p>
+
+  <h3>Interpretability</h3>
+  <p>Important, obviously. But the report also warns it can be used as <strong>ethics-washing</strong>: "look, we made it interpretable, so it's ethical now!" Ahahahaha. Nice try.</p>
+
+  <h2>Part 4: Society, or the Uncomfortable Bits</h2>
+
+  <ul>
+    <li><strong>Environment.</strong> Training these models produces real carbon emissions.</li>
+    <li><strong>Jobs.</strong> A lot of people may lose their jobs.</li>
+    <li><strong>Inequity</strong>, which splits into two kinds:
+      <ul>
+        <li><em>Intrinsic bias</em>: bias inside the model itself.</li>
+        <li><em>Extrinsic harm</em>: harm caused by how people use it.</li>
+      </ul>
+    </li>
+    <li><strong>Misuse</strong> is real, and building tools to detect it is expensive.</li>
+    <li><strong>Blame is hard to assign.</strong> A foundation model goes through so many steps (data, pretraining, adaptation, deployment) that it's hard to pin a harm on any one cause.</li>
+    <li><strong>The release dilemma.</strong> Foundation model developers carry more responsibility, and attackers can publish look-alike models. So developers may find that releasing a new model costs more than it's worth.</li>
+  </ul>
+
+  <h2>Cheat Sheet: Concepts Worth Knowing</h2>
+
+  <div class="concept">
+    <b>Self-supervised learning</b>
+    Training without labels. The data supervises itself (e.g. predict the missing word).
+  </div>
+
+  <div class="concept">
+    <b>Multimodal &amp; embodied data</b>
+    Data from multiple modalities, and data grounded in a physical body (like what a robot senses).
+  </div>
+
+  <div class="concept">
+    <b>Transformer</b>
+    The architecture that solved neural nets' long-dependency problem. See my last post!
+  </div>
+
+  <div class="concept">
+    <b>Prompt engineering</b>
+    The process of designing and refining the instructions, context, examples, and constraints you give a large language model:
+    <ul>
+      <li>Clear instructions</li>
+      <li>Providing context</li>
+      <li>Few-shot prompting: giving input/output examples, just like a LeetCode problem statement hahaha</li>
+      <li>Output constraints (e.g. "respond only in JSON")</li>
+    </ul>
+  </div>
+
+  <div class="concept">
+    <b>GDPR</b>
+    The EU's privacy law.
+  </div>
+
+  <div class="concept">
+    <b>HIPAA</b>
+    A US privacy law, mainly for healthcare data.
+  </div>
+
+  <div class="concept">
+    <b>Inductive bias</b>
+    The set of assumptions an ML model uses to generalize from training data to data it hasn't seen.
+  </div>
+
+  <div class="concept">
+    <b>Distillation</b>
+    Training a smaller "student" model to imitate a larger "teacher" model.
+  </div>
+
+  <div class="concept">
+    <b>Quantization</b>
+    Storing the model's numbers (weights, activations, etc.) at lower precision to shrink it, ideally losing only a little accuracy.
+  </div>
+
+  <div class="summary">
+    <h2>TL;DR</h2>
+    <ul>
+      <li>Foundation models are one big model adapted to many tasks (<em>homogenization</em>), with abilities nobody explicitly programmed (<em>emergence</em>). Risks emerge right alongside the capabilities.</li>
+      <li>Because everything is built on them, they need to be stable and safe. That's the whole point of the word "foundation."</li>
+      <li>Language is the most mature area; vision, robotics, and reasoning are still early, held back by data, compute, safety, and closed-loop problems.</li>
+      <li>The biggest wins could be in education, law, and healthcare, but the profit incentive to build them there is weak.</li>
+      <li>Compute demand is outrunning hardware, benchmarks get gamed (Goodhart!), and the societal costs are real: carbon, jobs, bias, misuse, and fuzzy accountability.</li>
+    </ul>
+  </div>
+
+  <div class="closing">
+    Next on the reading list: BERT (language), CLIP (vision), GPT-3, and DALL-E (vision). Time to see what these foundations actually look like up close.
+  </div>
+
+</div>
+<p class="paper-link">Original paper: <a href="https://arxiv.org/abs/2108.07258">https://arxiv.org/abs/2108.07258</a></p>
+</body>
+</html>
