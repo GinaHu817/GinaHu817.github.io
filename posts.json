@@ -14,5 +14,13 @@
     "tag": "Paper Notes · AI",
     "date": "2026-10-14",
     "date_display": "October 2026 · 10 min read"
+  },
+  {
+    "slug": "iquest-q1",
+    "title": "IQuest-Q1: The Open Model That Did Every Stage of Training (and Then Helped Build Its Own Successor)",
+    "subtitle": "A brand-new open-weight agent model that doesn't just polish the last step. It shows its work from pre-training to RL, measures how far it could safely scale, and even helps debug its own training data.",
+    "tag": "Paper Notes · AI",
+    "date": "2026-10-28",
+    "date_display": "October 2026 · 11 min read"
   }
 ]

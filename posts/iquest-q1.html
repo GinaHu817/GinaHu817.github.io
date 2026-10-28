@@ -1,0 +1,556 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IQuest-Q1: The Open Model That Did Every Stage of Training (and Then Helped Build Its Own Successor) · Gina's Paper Notes</title>
+<meta name="description" content="A brand-new open-weight agent model that doesn&#x27;t just polish the last step. It shows its work from pre-training to RL, measures how far it could safely scale, and even helps debug its own training data.">
+<style>
+  .site-nav { max-width: 680px; margin: 0 auto 28px; font-family: system-ui, sans-serif; font-size: 13px; }
+  .site-nav a { color: #4361ee; text-decoration: none; }
+  .site-nav a:hover { text-decoration: underline; }
+  .paper-link { max-width: 680px; margin: 0 auto 0; font-family: system-ui, sans-serif; font-size: 13px; }
+</style>
+</head>
+<body>
+<nav class="site-nav"><a href="../index.html">&larr; All paper notes</a></nav>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #fafaf8;
+    font-family: 'Georgia', serif;
+    color: #1a1a1a;
+    padding: 40px 20px;
+  }
+  .post {
+    max-width: 680px;
+    margin: 0 auto;
+  }
+  .tag {
+    font-family: system-ui, sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: #4361ee;
+    margin-bottom: 14px;
+  }
+  h1 {
+    font-size: 32px;
+    font-weight: 700;
+    line-height: 1.25;
+    margin-bottom: 12px;
+    color: #111;
+  }
+  .subtitle {
+    font-size: 18px;
+    color: #555;
+    font-style: italic;
+    margin-bottom: 20px;
+    line-height: 1.5;
+  }
+  .meta {
+    font-family: system-ui, sans-serif;
+    font-size: 12px;
+    color: #aaa;
+    margin-bottom: 36px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #e5e5e5;
+  }
+  p {
+    font-size: 17px;
+    line-height: 1.8;
+    margin-bottom: 22px;
+    color: #222;
+  }
+  h2 {
+    font-size: 22px;
+    font-weight: 700;
+    margin: 40px 0 14px;
+    color: #111;
+  }
+  h3 {
+    font-family: system-ui, sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    margin: 28px 0 10px;
+    color: #333;
+  }
+  ul, ol {
+    margin: 0 0 22px 24px;
+  }
+  li {
+    font-size: 17px;
+    line-height: 1.75;
+    margin-bottom: 8px;
+    color: #222;
+  }
+  .callout {
+    background: #eef2ff;
+    border-left: 4px solid #4361ee;
+    border-radius: 0 8px 8px 0;
+    padding: 14px 18px;
+    margin: 24px 0;
+    font-size: 16px;
+    line-height: 1.7;
+    color: #1e3a8a;
+  }
+  .aside {
+    background: #fff8e6;
+    border-left: 4px solid #f2a900;
+    border-radius: 0 8px 8px 0;
+    padding: 14px 18px;
+    margin: 24px 0;
+    font-size: 16px;
+    line-height: 1.7;
+    color: #6b4a00;
+  }
+  .concept {
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin: 14px 0;
+    font-size: 15px;
+    line-height: 1.7;
+    border: 1px solid #e5e5e5;
+  }
+  .concept b {
+    font-family: system-ui, sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: #4361ee;
+    display: block;
+    margin-bottom: 4px;
+  }
+  .concept ul { margin: 6px 0 0 20px; }
+  .concept li { font-size: 15px; margin-bottom: 2px; }
+  .summary {
+    background: #111;
+    color: #eee;
+    border-radius: 10px;
+    padding: 20px 22px;
+    margin: 28px 0;
+  }
+  .summary h2 { color: #fff; margin-top: 0; }
+  .summary li { color: #ddd; font-size: 16px; }
+  .closing {
+    margin-top: 40px;
+    padding-top: 24px;
+    border-top: 1px solid #e5e5e5;
+    font-size: 15px;
+    color: #666;
+    font-style: italic;
+    line-height: 1.8;
+  }
+  code {
+    font-family: monospace;
+    background: #f1f5f9;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 14px;
+    color: #334155;
+  }
+  .formula {
+    font-family: monospace;
+    background: #f1f5f9;
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin: 0 0 22px;
+    font-size: 14px;
+    line-height: 1.8;
+    color: #334155;
+    overflow-x: auto;
+  }
+  .pipeline {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 8px 0 26px;
+    font-family: system-ui, sans-serif;
+  }
+  .pipeline div {
+    flex: 1 1 110px;
+    background: #fff;
+    border: 1px solid #e5e5e5;
+    border-top: 3px solid #4361ee;
+    border-radius: 8px;
+    padding: 10px 10px 8px;
+    font-size: 12px;
+    line-height: 1.45;
+    color: #555;
+  }
+  .pipeline strong {
+    display: block;
+    font-size: 13px;
+    color: #111;
+    margin-bottom: 3px;
+  }
+  .stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 8px 0 26px;
+  }
+  .stat {
+    flex: 1 1 140px;
+    background: #fff;
+    border: 1px solid #e5e5e5;
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .stat .num {
+    font-size: 26px;
+    font-weight: 700;
+    color: #4361ee;
+    line-height: 1.1;
+  }
+  .stat .lbl {
+    font-family: system-ui, sans-serif;
+    font-size: 12px;
+    color: #777;
+    margin-top: 4px;
+    line-height: 1.4;
+  }
+  .mask-compare {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin: 8px 0 26px;
+    font-family: system-ui, sans-serif;
+    text-align: center;
+  }
+  .mask-compare > div {
+    flex: 1 1 240px;
+    background: #fff;
+    border: 1px solid #e5e5e5;
+    border-radius: 10px;
+    padding: 14px;
+  }
+  .mask-compare .head { font-weight: 700; font-size: 15px; color: #111; }
+  .mask-compare .rule { font-size: 13px; color: #666; margin: 6px 0; }
+  .mask-compare .arrow { color: #aaa; font-size: 14px; }
+  .mask-compare .out { border-radius: 8px; padding: 8px; margin-top: 6px; font-size: 13px; }
+  .mask-compare .role .out { background: #e8f7ec; color: #2f6b3a; }
+  .mask-compare .token .out { background: #e3ecfd; color: #2340a0; font-family: monospace; }
+  .flow {
+    margin: 8px 0 26px;
+    font-family: system-ui, sans-serif;
+    text-align: center;
+  }
+  .flow .step {
+    background: #fff;
+    border: 1px solid #e5e5e5;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 14px;
+    color: #111;
+    font-weight: 600;
+  }
+  .flow .step span {
+    display: block;
+    font-weight: 400;
+    font-size: 12.5px;
+    color: #666;
+    margin-top: 2px;
+  }
+  .flow .step.final { background: #eef8f0; border-color: #b9dfc2; }
+  .flow .down { color: #aaa; font-size: 13px; margin: 3px 0; }
+  .flow .experts {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  .flow .experts div {
+    background: #fff;
+    border: 1px solid #e5e5e5;
+    border-radius: 8px;
+    padding: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #111;
+  }
+  .flow .experts div span {
+    display: block;
+    font-weight: 400;
+    font-size: 12px;
+    color: #777;
+    margin-top: 2px;
+  }
+  .table-wrap { overflow-x: auto; margin: 8px 0 10px; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: system-ui, sans-serif;
+    font-size: 13.5px;
+  }
+  th, td {
+    padding: 7px 8px;
+    border-bottom: 1px solid #eee;
+    text-align: right;
+    white-space: nowrap;
+  }
+  th:first-child, td:first-child { text-align: left; }
+  th { font-size: 12px; color: #555; font-weight: 700; border-bottom: 2px solid #ddd; }
+  td.q1, th.q1 { background: #eef2ff; }
+  td.best { font-weight: 700; color: #4361ee; }
+  .table-note {
+    font-family: system-ui, sans-serif;
+    font-size: 12px;
+    color: #888;
+    line-height: 1.5;
+    margin-bottom: 26px;
+  }
+</style>
+
+<div class="post">
+
+  <div class="tag">Paper Notes · AI</div>
+
+  <h1>IQuest-Q1: The Open Model That Did Every Stage of Training (and Then Helped Build Its Own Successor)</h1>
+
+  <div class="subtitle">A brand-new open-weight agent model that doesn't just polish the last step. It shows its work from pre-training to RL, measures how far it could safely scale, and even helps debug its own training data.</div>
+
+  <div class="meta">October 2026 &nbsp;·&nbsp; 11 min read</div>
+
+  <p>So far on this blog I've gone from the paper that invented the Transformer to Stanford's giant report on foundation models. This time I wanted something fresh off the press: <em>IQuest-Q1: Advancing Foundation Capabilities for Agentic CLI Systems</em>, from IQuest Research, posted to arXiv on October 22, 2026. It's an open-weight model built to work as an agent in the command line: reading files, running code, using tools, and finishing long, multi-step jobs.</p>
+
+  <p>Here's why it grabbed me. A lot of new-model reports mostly talk about post-training, the final polish. This one walks through <strong>the whole pipeline</strong>: pre-training, mid-training, and post-training (SFT, RL, distillation, and model merging). It's like getting the entire recipe instead of just a photo of the cake.</p>
+
+  <div class="pipeline">
+    <div><strong>01 Pre-training</strong>Diverse data, architecture, stable &amp; efficient scaling</div>
+    <div><strong>02 Mid-training</strong>Agentic &amp; reasoning data, context extension</div>
+    <div><strong>03 SFT</strong>Synthesized tasks, verified agentic data</div>
+    <div><strong>04 RL &amp; MOPD</strong>Domain RL, 4 experts &rarr; 1 student</div>
+    <div><strong>05 Merging</strong>Combine models into IQuest-Q1</div>
+  </div>
+
+  <h2>The Model at a Glance</h2>
+
+  <p>IQuest-Q1 is a sparse <strong>Mixture-of-Experts (MoE)</strong> model. That's the trick where a model is huge on paper, but each token only wakes up a small team of "experts" inside it.</p>
+
+  <div class="stats">
+    <div class="stat"><div class="num">320B</div><div class="lbl">total parameters</div></div>
+    <div class="stat"><div class="num">15B</div><div class="lbl">activated per token (under 5% of the total)</div></div>
+    <div class="stat"><div class="num">8 / 256</div><div class="lbl">experts used per token, out of 256 in each MoE layer</div></div>
+    <div class="stat"><div class="num">29T</div><div class="lbl">tokens across pre-training + mid-training</div></div>
+  </div>
+
+  <p>Think of it like a hospital with 256 specialists per floor. You don't see all of them for a sore throat. A router sends you to the 8 who matter. You get the knowledge of a giant model at roughly the running cost of a much smaller one.</p>
+
+  <h3>How does it stack up?</h3>
+
+  <p>The paper tests it on a huge list of coding and general-agent benchmarks. My honest read: it's competitive with the other open models it's compared against, and on most benchmarks it still trails the two big proprietary models, <strong>Claude Opus 5</strong> and <strong>GPT-5.6 Sol</strong>. But for a model with only 15B active parameters, that's a pretty moderate size to be in that conversation at all. And there are a few fun upsets:</p>
+
+  <div class="table-wrap">
+    <table>
+      <tr><th>Benchmark</th><th class="q1">IQuest-Q1</th><th>GLM-5.3 Flash</th><th>DS-V4 Flash-0731</th><th>Claude Opus 5</th><th>GPT-5.6 Sol</th></tr>
+      <tr><td>DeepSWE v1.1</td><td class="q1">64.6</td><td>63.4</td><td>54.4</td><td class="best">73.7</td><td>73.0</td></tr>
+      <tr><td>SWE-Bench Pro</td><td class="q1">57.5</td><td>59.4*</td><td>57.3*</td><td class="best">79.2</td><td>64.6</td></tr>
+      <tr><td>Terminal-Bench 2.1</td><td class="q1">83.2</td><td>84.3</td><td>82.7</td><td class="best">89.1</td><td>88.8</td></tr>
+      <tr><td>Terminal-Bench 4.0</td><td class="q1">22.7</td><td>32.8</td><td>7.0</td><td class="best">53.9</td><td>37.3</td></tr>
+      <tr><td>CyberGym</td><td class="q1 best">84.5</td><td>81.6*</td><td>76.7</td><td>–</td><td>83.6</td></tr>
+      <tr><td>JobBench</td><td class="q1">55.7</td><td>49.7*</td><td>50.0*</td><td class="best">65.7</td><td>45.4</td></tr>
+      <tr><td>AutomationBench</td><td class="q1 best">52.7</td><td>48.8</td><td>37.7</td><td>50.3</td><td>45.8</td></tr>
+      <tr><td>&tau;<sup>3</sup>-Banking</td><td class="q1 best">51.8</td><td>47.2</td><td>39.4</td><td>44.7</td><td>44.3</td></tr>
+      <tr><td>Humanity's Last Exam (no tools)</td><td class="q1">39.2</td><td>39.9</td><td>38.6</td><td class="best">54.9</td><td>49.5</td></tr>
+    </table>
+  </div>
+  <p class="table-note">A selection of rows from Table 2 of the paper (higher is better). The paper also compares Tencent Hy3 and MiniMax M3, which I left out to keep this readable. * = baseline score from IQuest's own testing. "–" = no score reported. Blue bold = best in this table's row.</p>
+
+  <p>So: it beats both proprietary giants on AutomationBench and &tau;<sup>3</sup>-Banking, and beats GPT-5.6 Sol on CyberGym (Claude Opus 5 has no score there). On the really long, hard terminal tasks (Terminal-Bench 4.0) it's still far behind. And it's not the best open model on everything either: GLM-5.3-Flash edges it out on SWE-Bench Pro, Terminal-Bench, and Humanity's Last Exam.</p>
+
+  <h3>The part that really surprised me: it helps build its successor</h3>
+
+  <p>IQuest-Q1 takes part in an <strong>iterative model-development</strong> loop. An agent built on the model looks for its own weaknesses, proposes a fix, implements it, and evaluates the result, while humans review key decisions. The authors call it <em>human-on-the-loop</em>, a practical path toward recursive self-improvement.</p>
+
+  <p>Their example is wonderfully concrete. The model was great with familiar tool-call formats but stumbled on unfamiliar ones, producing <strong>35 tool-call errors</strong> in one long-horizon task. The agent traced the failures across <strong>6,054 tool calls</strong> and found that the training data was heavily biased toward one tool-call schema, and some records even had tool definitions and call parameters that didn't match (a preprocessing bug). It proposed cleaning those records and mixing in more diverse schemas. Humans approved, and the fix ran as a training job of <strong>2.35B tokens and 938.7 GPU hours</strong>, then got checked on both new and familiar schemas for regressions.</p>
+
+  <div class="callout">
+    A model debugging its own training data is a little bit "Inception." But notice that humans still approve the expensive runs. The paper is clear that human supervision matters here.
+  </div>
+
+  <h2>Part 1: Pre-Training, Where the Unusual Stuff Lives</h2>
+
+  <h3>📏 How big can you go before training breaks?</h3>
+
+  <p>This was my favorite idea in the whole paper. When you train a model, there are two learning rates you care about:</p>
+
+  <ul>
+    <li>the <strong>optimal learning rate</strong> (&eta;<sub>opt</sub>): the one that trains most efficiently on a fixed budget, and</li>
+    <li>the <strong>safe learning rate</strong> (&eta;<sub>safe</sub>): the largest one that still trains stably. They find it by grid search, sorting runs into <em>stable</em>, <em>warning</em> (loss spikes, then recovers), and <em>collapsed</em> (loss spikes and stays high).</li>
+  </ul>
+
+  <p>As long as the safe rate sits above the optimal rate, you have headroom. They measure it as:</p>
+
+  <div class="formula">H<sub>N</sub> = log( &eta;<sub>safe</sub>(N) / &eta;<sub>opt</sub>(N) )</div>
+
+  <p>At IQuest-Q1's own scale (15B active), the safe learning rate is about <strong>2&times; the optimal one</strong>. Plenty of safety margin. Then the clever part: they plot both curves across model sizes and extrapolate to where the two lines meet. They call that crossing point the <strong>Critical Model Size</strong>, and it lands at about <strong>572B activated parameters</strong> (about <strong>12T total</strong>). In other words, this recipe should still scale far beyond the model they actually trained.</p>
+
+  <div class="aside">
+    📌 Honestly, I've never seen a paper do this before. Most reports tell you "we trained a big model and it was fine." This one tells you <em>how much bigger it could get before things break</em>. The idea is inspired by the "critical batch size" concept, but applied to model size.
+  </div>
+
+  <p>Bonus stat: in a controlled comparison against a Qwen3-30B-A3B-style design trained on identical data, IQuest-Q1's architecture showed <strong>1.93&times; higher scaling efficiency</strong>, reaching the same training loss with only about 52% of the compute.</p>
+
+  <h3>🧱 Architecture tweaks compared with a "standard" LLM</h3>
+
+  <p><strong>Grouped-Query Attention (GQA).</strong> The model has 48 query heads but only 8 key/value heads, so <strong>every 6 query heads share the same K and V</strong>. Since the KV cache stores keys and values per KV head, this makes it 6&times; smaller than giving every query head its own. It also mixes attention types: after the first two layers (and before the last two), which use full attention, the stack repeats three sliding-window layers (window of 4,096 tokens) followed by one full-attention layer.</p>
+
+  <p><strong>Stable SplitNorm.</strong> Remember the residual connections from my Foundation Models post? Here's a twist on them. In the usual <em>Pre-Norm</em> setup, the residual stream itself is never normalized, so its variance can keep growing with depth, and later layers end up contributing relatively less. Deep layers get underused. SplitNorm splits the strategy between the two sublayers:</p>
+
+  <div class="formula">z = RMSNorm(x)<br>h = z + Attention(z) &nbsp;&nbsp;&larr; the stream entering attention is normalized<br>y = h + FFN(RMSNorm(h)) &nbsp;&larr; the stream around the FFN stays unnormalized</div>
+
+  <p>So it normalizes selected paths while keeping an identity shortcut around the FFN. The goal is to balance <strong>using all that depth</strong> (the Post-Norm strength) with <strong>stable optimization</strong> (the Pre-Norm strength). The "Stable" part: scaling this up naively got unstable, so they also add an RMSNorm on the attention output to stop activations from exploding, and a SandwichNorm on the very first layer.</p>
+
+  <p><strong>QKNorm Clip.</strong> Normalizing the queries and keys keeps attention scores from blowing up. The "clip" part caps the learnable scale parameters of that normalization at <strong>10</strong>, so they can't quietly grow huge either.</p>
+
+  <p><strong>Query-aware sink attention.</strong> Softmax forces attention weights to sum to 1. So a token with nothing useful to look at still has to dump its attention <em>somewhere</em>, like a student who must hand in an answer even when they don't know it. The sink is a special destination for that leftover attention. In the architecture diagram it has a key but a <strong>zero value</strong>, so attention dumped there adds nothing to the output.</p>
+
+  <h2>Part 2: Mid-Training, the Bridge to Being an Agent</h2>
+
+  <p>Mid-training sits between general pre-training and agent-specific post-training. Two ideas stood out:</p>
+
+  <ul>
+    <li><strong>Progressive context extension.</strong> Train on shorter contexts first, then longer: <strong>32K &rarr; 128K &rarr; 512K tokens</strong>. Like learning to read paragraphs before novels.</li>
+    <li><strong>Token-level loss masking.</strong> Normally you decide what to learn from by <em>role</em> (e.g. train on everything the assistant said). Here they mark individual tokens, so supervision can target exactly the spans that matter, with finer control.</li>
+  </ul>
+
+  <div class="mask-compare">
+    <div class="role">
+      <div class="head">Role-based</div>
+      <div class="rule">Role = Assistant</div>
+      <div class="arrow">&darr;</div>
+      <div class="out">Learn from all of its tokens</div>
+    </div>
+    <div class="token">
+      <div class="head">Token-level</div>
+      <div class="rule">Any role or text span</div>
+      <div class="arrow">&darr;</div>
+      <div class="out">Mask = [0,0,1,1,1,0,0]</div>
+    </div>
+  </div>
+
+  <p>They also built <strong>more than one million</strong> executable, containerized task instances from code repositories, ran an agent on each, and kept the valid, complete trajectories as training data.</p>
+
+  <h3>How do you grade a model that isn't finished yet?</h3>
+
+  <p>They use <strong>bits-per-byte (BPB)</strong> on held-out agent trajectories. <strong>Lower is better</strong>: a low BPB means the model assigns higher likelihood to what competent agents actually did. Nice bonus: it doesn't require the model to generate anything, so it's a cheap, fine-grained signal.</p>
+
+  <p>They also break long agent tasks into <strong>atomic abilities</strong> and test each one, which helps pinpoint exactly which skill is missing.</p>
+
+  <h2>Part 3: Post-Training, Where It Learns to Behave Like an Agent</h2>
+
+  <h3>🕵️ Stopping the model from cheating</h3>
+
+  <p><strong>Reward hacking</strong> is when a model finds a shortcut to the reward instead of actually solving the task. Picture an agent asked to fix a bug that just digs the original fix out of the Git history. To stop this, the paper uses three layers of protection plus task-specific safeguards:</p>
+
+  <ol>
+    <li><strong>Environment preparation.</strong> Clean the Git history, remove files that could reveal solutions, or build fresh environments with only the required materials.</li>
+    <li><strong>Execution-time checks.</strong> Network restrictions, intercepting tool calls, and blocking rules developed from <em>observed</em> hacking behavior. Blocked actions get explicit feedback, so the agent can keep working the honest way.</li>
+    <li><strong>Trajectory auditing.</strong> Rule-based checks plus rubric-guided LLM judges review the commands and outputs, looking for things like grabbing leaked fixes, peeking at hidden tests, or editing evaluation scripts.</li>
+    <li><strong>Task-specific safeguards.</strong> For example, for SWE-like tasks they keep Git history only up to the base commit and use hooks in Claude Code, Codex, and OpenCode to block attempts to fetch existing solutions.</li>
+  </ol>
+
+  <div class="callout">
+    My favorite detail: the blocking rules come from catching the model cheating in the first place. Every trick it tries becomes a new rule. It's an arms race, and they keep score.
+  </div>
+
+  <h3>🏋️ Environment-centered reinforcement learning</h3>
+
+  <p>Real users run agents inside different "harnesses" (Claude Code, Codex, and different versions of each), and each one has its own tools and quirks. Instead of training one model per harness, the team trains <strong>one shared policy</strong> on trajectories collected from <strong>diverse harness configurations</strong>. That's how you get a model that doesn't panic when you move it to a new tool. I think this is amazing.</p>
+
+  <p>They're also careful about blame. When an episode fails, mistakes caused by the policy become learning signals, but faults in the environment or harness get masked out, and samples with evaluator faults aren't used at all. The model only gets punished for its own mistakes. Fair.</p>
+
+  <h3>🎓 MOPD: four teachers, one student</h3>
+
+  <p>Instead of asking one model to learn every skill alone, they train expert models for different capabilities and then use them to teach a single student. That's <strong>Multi-Teacher On-Policy Distillation</strong>:</p>
+
+  <div class="flow">
+    <div class="step">Student model<span>Initialized from the SFT Stage 2 checkpoint</span></div>
+    <div class="down">&darr;</div>
+    <div class="step">Student generates its own agent trajectory<span>Text, actions, and tool calls (this is the "on-policy" part)</span></div>
+    <div class="down">&darr;</div>
+    <div class="step">Pick a teacher based on the task's domain</div>
+    <div class="down">&darr;</div>
+    <div class="experts">
+      <div>🔒 Agentic UX Expert<span>terminal interaction, tool use, web dev, coding workflows</span></div>
+      <div>🔒 Multi-Harness Expert<span>Claude Code, Codex, OpenCode</span></div>
+      <div>🔒 Long-Horizon Expert<span>extended coding &amp; cybersecurity</span></div>
+      <div>🔒 General Agentic Expert<span>working-agent tasks, web search, conversation, reasoning</span></div>
+    </div>
+    <div class="down">&darr; all four teachers are frozen</div>
+    <div class="step">Teacher scores every token the student generated<span>Compares teacher vs. student probability for each token</span></div>
+    <div class="down">&darr;</div>
+    <div class="step final">Update the student<span>Push up tokens the selected expert favors, push down the rest</span></div>
+  </div>
+
+  <p>The per-token score is basically <code>clip(log(p_teacher / p_student), −c, c)</code>. If the teacher likes a token more than the student does, the score is positive and the student leans toward it. The clip keeps any single token from yanking the update too hard. And one funny detail: rollouts where the student gets stuck repeating itself get a mask of 0, so they don't count at all.</p>
+
+  <h2>Limitations</h2>
+
+  <ul>
+    <li><strong>Text only.</strong> No native image, audio, or video input.</li>
+    <li><strong>Check its work.</strong> Explanations and code can be wrong, so review changes and verify them with real tests.</li>
+    <li><strong>Real CLI work is messy.</strong> The model may miss constraints, repeat failed attempts, or leave issues unresolved, so humans still need to supervise.</li>
+  </ul>
+
+  <h2>Cheat Sheet: Concepts Worth Knowing</h2>
+
+  <div class="concept">
+    <b>Mixture-of-Experts (MoE)</b>
+    A model with many "expert" sub-networks, where a router activates only a few per token. Lots of total parameters, much less compute per token.
+  </div>
+
+  <div class="concept">
+    <b>Atomic abilities</b>
+    Small, individually measurable skills an AI agent needs to complete a larger, multi-step task.
+  </div>
+
+  <div class="concept">
+    <b>Bits-per-byte (BPB)</b>
+    How "surprised" the model is by real text, measured per byte. Lower = it finds good agent behavior more likely.
+  </div>
+
+  <div class="concept">
+    <b>GRPO (Group Relative Policy Optimization)</b>
+    A reinforcement learning algorithm that improves an LLM by comparing the rewards of multiple attempts at the same task, then raising the probability of the behaviors that did better than the group average. In IQuest-Q1, the repeated attempts are compared under the same harness and evaluator version.
+  </div>
+
+  <div class="concept">
+    <b>MOPD (Multi-Teacher On-Policy Distillation)</b>
+    Instead of one model learning every skill on its own, train several expert models for different capabilities, then use those experts to teach a single student model, scoring the student's own outputs.
+  </div>
+
+  <div class="concept">
+    <b>Muon</b>
+    The optimizer IQuest-Q1 uses for most of its weights (token embeddings, the LM head, normalization parameters, and MoE routers use Adam instead). It's on my to-read list.
+  </div>
+
+  <div class="concept">
+    <b>Reward hacking</b>
+    When a model exploits loopholes (leaked answers, weak tests) to get rewarded without actually solving the task.
+  </div>
+
+  <div class="summary">
+    <h2>TL;DR</h2>
+    <ul>
+      <li>IQuest-Q1 is an open-weight MoE agent model for the command line: 320B total parameters, 15B active per token.</li>
+      <li>Unlike many releases, the paper covers the whole pipeline: pre-training, mid-training, SFT, RL, MOPD, and model merging.</li>
+      <li>The coolest idea: measuring how far the training recipe can safely scale. The safe learning rate is about 2&times; the optimal one at 15B active, and the extrapolated limit is about 572B active parameters.</li>
+      <li>Architecture tricks: GQA (6 query heads per KV head), Stable SplitNorm, QKNorm Clip at 10, and sink attention for "nowhere to look" tokens.</li>
+      <li>Post-training fights reward hacking on several fronts, trains one policy across many harnesses, and distills four frozen experts into one student.</li>
+      <li>It's competitive with other open models and mostly behind Claude Opus 5 and GPT-5.6 Sol, with a few wins. It's also helping build its own successor, with humans on the loop.</li>
+    </ul>
+  </div>
+
+  <div class="closing">
+    Next on my reading list: the papers behind Muon, GRPO, and MOPD. And there are two pieces of this paper I haven't covered yet: model merging and the post-training infrastructure. Those get their own spotlight in my next post. Stay tuned!
+  </div>
+
+</div>
+<p class="paper-link">Original paper: <a href="https://arxiv.org/abs/2610.30949">https://arxiv.org/abs/2610.30949</a></p>
+</body>
+</html>
