@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BERT: Learning to Read by Filling in the Blanks (and Why Both Sides Matter) · Gina's Paper Notes</title>
+<meta name="description" content="I thought I understood what “bidirectional” meant. Then BERT made me rethink masking, encoders, and where training labels actually come from.">
+<style>
+  .site-nav { max-width: 680px; margin: 0 auto 28px; font-family: system-ui, sans-serif; font-size: 13px; }
+  .site-nav a { color: #4361ee; text-decoration: none; }
+  .site-nav a:hover { text-decoration: underline; }
+  .paper-link { max-width: 680px; margin: 0 auto 0; font-family: system-ui, sans-serif; font-size: 13px; }
+</style>
+</head>
+<body>
+<nav class="site-nav"><a href="../index.html">&larr; All paper notes</a></nav>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #fafaf8;
+    font-family: 'Georgia', serif;
+    color: #1a1a1a;
+    padding: 40px 20px;
+  }
+  .post {
+    max-width: 680px;
+    margin: 0 auto;
+  }
+  .tag {
+    font-family: system-ui, sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: #4361ee;
+    margin-bottom: 14px;
+  }
+  h1 {
+    font-size: 32px;
+    font-weight: 700;
+    line-height: 1.25;
+    margin-bottom: 12px;
+    color: #111;
+  }
+  .subtitle {
+    font-size: 18px;
+    color: #555;
+    font-style: italic;
+    margin-bottom: 20px;
+    line-height: 1.5;
+  }
+  .meta {
+    font-family: system-ui, sans-serif;
+    font-size: 12px;
+    color: #aaa;
+    margin-bottom: 36px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #e5e5e5;
+  }
+  p {
+    font-size: 17px;
+    line-height: 1.8;
+    margin-bottom: 22px;
+    color: #222;
+  }
+  h2 {
+    font-size: 22px;
+    font-weight: 700;
+    margin: 40px 0 14px;
+    color: #111;
+  }
+  h3 {
+    font-family: system-ui, sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    margin: 28px 0 10px;
+    color: #333;
+  }
+  ul, ol {
+    margin: 0 0 22px 24px;
+  }
+  li {
+    font-size: 17px;
+    line-height: 1.75;
+    margin-bottom: 8px;
+    color: #222;
+  }
+  .callout {
+    background: #eef2ff;
+    border-left: 4px solid #4361ee;
+    border-radius: 0 8px 8px 0;
+    padding: 14px 18px;
+    margin: 24px 0;
+    font-size: 16px;
+    line-height: 1.7;
+    color: #1e3a8a;
+  }
+  .aside {
+    background: #fff8e6;
+    border-left: 4px solid #f2a900;
+    border-radius: 0 8px 8px 0;
+    padding: 14px 18px;
+    margin: 24px 0;
+    font-size: 16px;
+    line-height: 1.7;
+    color: #6b4a00;
+  }
+  .concept {
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin: 14px 0;
+    font-size: 15px;
+    line-height: 1.7;
+    border: 1px solid #e5e5e5;
+  }
+  .concept b {
+    font-family: system-ui, sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: #4361ee;
+    display: block;
+    margin-bottom: 4px;
+  }
+  .concept ul { margin: 6px 0 0 20px; }
+  .concept li { font-size: 15px; margin-bottom: 2px; }
+  .summary {
+    background: #111;
+    color: #eee;
+    border-radius: 10px;
+    padding: 20px 22px;
+    margin: 28px 0;
+  }
+  .summary h2 { color: #fff; margin-top: 0; }
+  .summary li { color: #ddd; font-size: 16px; }
+  .closing {
+    margin-top: 40px;
+    padding-top: 24px;
+    border-top: 1px solid #e5e5e5;
+    font-size: 15px;
+    color: #666;
+    font-style: italic;
+    line-height: 1.8;
+  }
+  code {
+    font-family: monospace;
+    background: #f1f5f9;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 14px;
+    color: #334155;
+  }
+</style>
+<style>
+  .post a { color: #4361ee; text-underline-offset: 3px; }
+  .compare { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 24px 0; }
+  .compare .concept { margin: 0; }
+  .example { background: #fff; border: 1px solid #e5e5e5; border-radius: 10px; padding: 18px; margin: 24px 0; }
+  .example p { font-size: 16px; margin-bottom: 10px; }
+  .example p:last-child { margin-bottom: 0; }
+  .example code { white-space: normal; overflow-wrap: anywhere; }
+  .table-wrap { overflow-x: auto; margin: 22px 0; }
+  table { width: 100%; border-collapse: collapse; font-family: system-ui, sans-serif; font-size: 14px; line-height: 1.6; }
+  caption { text-align: left; font-weight: 700; margin-bottom: 10px; color: #333; }
+  th, td { text-align: left; padding: 12px; border-bottom: 1px solid #e5e5e5; vertical-align: top; }
+  th { background: #eef2ff; color: #1e3a8a; }
+  .source-note { font-family: system-ui, sans-serif; font-size: 13px; line-height: 1.7; color: #777; }
+  .summary ul { margin-bottom: 0; }
+  @media (max-width: 520px) {
+    .compare { grid-template-columns: 1fr; }
+    h1 { font-size: 28px; }
+    th, td { padding: 9px 7px; }
+  }
+</style>
+
+<article class="post">
+  <div class="tag">Paper Notes · AI</div>
+  <h1>BERT: Learning to Read by Filling in the Blanks (and Why Both Sides Matter)</h1>
+  <div class="subtitle">I thought I understood what “bidirectional” meant. Then BERT made me rethink masking, encoders, and where training labels actually come from.</div>
+  <div class="meta">November 2026 &nbsp;·&nbsp; 11 min read</div>
+
+  <p>Back in my <a href="attention-is-all-you-need.html">Transformer post</a>, I put BERT on the reading list. Time to pay that debt. The full title is <em>BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding</em>. The acronym expands to <strong>Bidirectional Encoder Representations from Transformers</strong>, which is impressively close to being an entire abstract.</p>
+
+  <p>My notes started with a straightforward question: why was BERT such a big deal? They ended with a more embarrassing one: wait, why exactly is this an encoder? Somewhere between those two questions, the paper clicked for me.</p>
+
+  <p>The idea I keep coming back to is simple: when you're trying to understand a word, being allowed to finish reading the sentence helps. The interesting part is how you turn that obvious human habit into a useful training problem.</p>
+
+  <h2>Let Me Finish the Sentence First</h2>
+
+  <p>Imagine reading: “She walked to the bank…” A financial errand? A riverside stroll? Now finish it: “…to watch the ducks.” The words on the right change how you interpret the word in the middle. A representation that has only seen the left side has to work with less evidence.</p>
+
+  <p>This matters for tasks that ask something about an existing piece of text. If I'm labeling names in a sentence, I want the label for an early word to benefit from a clue that appears later. If I'm finding an answer inside a passage, I want the candidate answer to have access to the surrounding passage.</p>
+
+  <div class="compare">
+    <div class="concept"><b>Left-to-right representation</b>At “bank,” the model can use “She walked to the” and the current token. The ducks haven't arrived yet.</div>
+    <div class="concept"><b>Bidirectional representation</b>At “bank,” the model can use the surrounding sentence, including those extremely helpful ducks.</div>
+  </div>
+
+  <p>That doesn't make a left-to-right model bad. Predicting what comes next requires working without the future. But when the whole input is already available, hiding half the evidence is an awkward restriction.</p>
+
+  <h2>“Both Directions” Has a Subtle Catch</h2>
+
+  <p>My first reaction was: couldn't we read the sentence forwards, read it backwards, and combine the results? That's the intuition behind <strong>ELMo</strong>, short for <em>Embeddings from Language Models</em>. It combines representations from separate language models running in opposite directions.</p>
+
+  <p>But combining two completed readings is different from letting information from both sides interact throughout the reading process. In BERT, left and right context can mix <em>at every layer</em>. The model keeps revising a token's representation using the whole available input, rather than joining two separate views at the end.</p>
+
+  <p>There's also a nice question-answering wrinkle in my notes. Suppose the input is <code>question → passage</code>. A purely right-to-left reader reaches a word in the passage before it can use the question on the left. That limitation comes from the input order and direction, rather than some mysterious inability to understand questions.</p>
+
+  <div class="callout">The useful distinction is <strong>deep interaction between both sides</strong>. “We ran the text in two directions” doesn't automatically give you that.</div>
+
+  <h2>The Training Problem: Don't Hand It the Answer</h2>
+
+  <p>Now for the catch. If a model can see the whole sentence and we ask it to predict a token that's sitting right there, it has an excellent strategy: copy it. Perfect homework, zero studying. HAHA.</p>
+
+  <p>BERT's <strong>masked language modeling (MLM)</strong> objective makes the problem useful by corrupting some input tokens and asking the model to recover their originals. For a masked position, the answer is missing, but clues on both sides are still available.</p>
+
+  <div class="example">
+    <p><strong>A toy fill-in-the-blank example</strong></p>
+    <p>Input: <code>The cat sat on the [MASK].</code></p>
+    <p>Target at that position: <code>mat</code></p>
+    <p>The original text supplies the target. A different ending could also be plausible; training rewards the token that was actually there.</p>
+  </div>
+
+  <p>One detail I had to separate in my head: an <strong>attention mask</strong> controls which positions may exchange information. The literal token <code>[MASK]</code> replaces a token's content. BERT can attend to a masked position; what it can't see there is the original token. Same word, “mask,” two different jobs.</p>
+
+  <h3>Why not replace every selected token with [MASK]?</h3>
+
+  <p>The original recipe selects <strong>15% of token positions</strong> for prediction. Of those selected positions, 80% become <code>[MASK]</code>, 10% become a random token, and 10% stay unchanged. The target is always the original token. Those percentages are conditional on selection: across all positions, that's about 12%, 1.5%, and 1.5%, respectively. (<a href="https://aclanthology.org/N19-1423.pdf#page=4">Section 3.1</a>.)</p>
+
+  <p>My notes ask why we need this little mixture. The practical issue is that normal downstream text doesn't come with helpful <code>[MASK]</code> signs. Random replacements make the visible token potentially misleading; unchanged examples let the model learn representations when the real token is present. Together, the mixture reduces dependence on a special corruption marker.</p>
+
+  <p>The unchanged case initially felt like cheating to me. And yes, copying can work for that individual position! But the model isn't told which visible tokens were selected or replaced. The broader training problem still asks it to handle missing, misleading, and ordinary-looking input.</p>
+
+  <h3>Is BERT an autoencoder, then?</h3>
+
+  <p>There's a useful family resemblance to a <strong>denoising autoencoder</strong>: damage the input, then recover information from it. The distinction I want to remember is about the reconstruction target. Original BERT predicts selected token positions, rather than reconstructing the entire input. (<a href="https://aclanthology.org/N19-1423.pdf#page=4">Section 3.1</a>.)</p>
+
+  <p>So “encoder-only” and “denoising” can happily appear in the same explanation. The first describes the network's architecture; the second describes a kind of learning objective. They're answering different questions.</p>
+
+  <h2>A Binary Classifier Can Still Be Self-Supervised</h2>
+
+  <p>The second pre-training objective is <strong>next-sentence prediction (NSP)</strong>. Given two text segments, decide whether the second actually followed the first in the source. The training pairs are split evenly between actual continuations and randomly sampled segments. (<a href="https://aclanthology.org/N19-1423.pdf#page=4">Section 3.1</a>.)</p>
+
+  <p>I originally put this in the “supervised learning” box. There are inputs, binary labels, and a classification loss. Looks supervised to me!</p>
+
+  <p>What changed my mind was asking <em>who made the labels</em>. For NSP, the sampling procedure already knows whether it took the actual continuation. For MLM, the uncorrupted text already contains the answer. No one has to sit down and annotate those examples by hand.</p>
+
+  <div class="callout">Self-supervised learning still has targets. The “self” tells you where those targets come from: the data and the way you construct the task.</div>
+
+  <p>There's a limit to the sentence-pair intuition, too. “Did this follow that in a document?” is a specific training question. It isn't automatically a test of logical entailment, factual truth, or whether one event caused another. I find it helpful to keep the actual label in view before assigning the model a much grander skill.</p>
+
+  <h2>Okay, But Why Is It an Encoder?</h2>
+
+  <p>This was the biggest question mark in my notes. If BERT can predict a missing word, isn't it producing something? Why doesn't that make it a decoder?</p>
+
+  <p>The output alone doesn't settle it. A classification layer produces something too. What helps me is looking at how information flows through the Transformer.</p>
+
+  <div class="table-wrap">
+    <table>
+      <caption>Three Transformer setups, three ways to use context</caption>
+      <thead><tr><th scope="col">Setup</th><th scope="col">What a token can attend to</th><th scope="col">Intuition</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">Encoder-only<br>(BERT)</th><td>All non-padding positions in the input, including itself.</td><td>Read the available text and build contextual representations.</td></tr>
+        <tr><th scope="row">Decoder-only<br>(GPT-style)</th><td>Its own position and earlier positions, under causal self-attention.</td><td>Use the prefix to predict the next token.</td></tr>
+        <tr><th scope="row">Encoder–decoder</th><td>The encoder reads the source; the decoder uses causal self-attention plus cross-attention to the source.</td><td>Read one sequence, then generate another.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>For translation, picture an encoder reading the French source. The decoder writes English while looking back at that encoded French. In cross-attention, the decoder supplies queries, and the encoder's outputs supply keys and values.</p>
+
+  <p>BERT doesn't have that separate generating stack. Its job is to build representations of the input, with a prediction layer attached for whichever task we're training. Filling in a blank doesn't turn the underlying encoder into an autoregressive decoder.</p>
+
+  <div class="aside">📌 My note to self: “Does it output a word?” is the wrong shortcut. Check the attention pattern and whether there's a separate source sequence being attended to.</div>
+
+  <h2>From Filling Blanks to Doing a Real Task</h2>
+
+  <p>Pre-training gives you a starting point. <strong>Fine-tuning</strong> adapts it using labeled examples for a particular downstream task. I like to think of pre-training as building a reading toolkit, and fine-tuning as teaching that toolkit what today's assignment is.</p>
+
+  <div class="example">
+    <p><strong>A toy sentiment-classification setup</strong></p>
+    <p>Input: <code>[CLS] The ending was wonderful. [SEP]</code></p>
+    <p>Readout: the final representation at <code>[CLS]</code> goes into a small classifier.</p>
+    <p>Training target: <code>positive</code></p>
+  </div>
+
+  <p>For named entity recognition, the assignment changes: attach labels to token representations, such as identifying “Paris” as a location. For extractive question answering, pack the question and passage together, then predict the start and end of an answer span. These are different readouts of contextual representations.</p>
+
+  <p>The part I don't want to gloss over: in the original fine-tuning setup, <strong>BERT's weights update along with the task-specific output layer</strong>. You aren't just placing a classifier on top of a permanently frozen reader. And separate tasks get separate fine-tuned models initialized from the same pre-trained checkpoint. (<a href="https://aclanthology.org/N19-1423.pdf#page=3">Sections 3 and 3.2</a>.)</p>
+
+  <h2>Freezing the Model Isn't Giving Up</h2>
+
+  <p>My notes also make a case for the <strong>feature-based approach</strong>. Keep the pre-trained model fixed, extract its representations, and train a task-specific model on top.</p>
+
+  <p>Why do that? Maybe your task benefits from a different architecture. Or maybe you want to compare a dozen cheap models without repeatedly paying to update a large encoder. If you cache the representations once, that second kind of experiment gets much easier.</p>
+
+  <div class="compare">
+    <div class="concept"><b>Fine-tuning</b>Update the reader and the task head together. The representations can adapt to the assignment.</div>
+    <div class="concept"><b>Feature-based</b>Freeze the reader and reuse its outputs. Convenient for caching and experimenting with a separate task model.</div>
+  </div>
+
+  <p>That flexibility is a useful takeaway from my notes: pre-trained representations can be valuable even when you don't update the entire model. The choice depends on your experiment and compute budget, as well as your task.</p>
+
+  <h2>The Result That Stayed With Me</h2>
+
+  <p>The paper reports an official GLUE score of <strong>80.5 versus 72.8 for the GPT baseline</strong> at the time. GLUE is a suite of nine language-understanding tasks. That score is a benchmark aggregate, rather than “80.5% understanding.” (<a href="https://aclanthology.org/N19-1423.pdf#page=6">Section 4.1</a>.)</p>
+
+  <p>But the finding I highlighted in my notes was about scale: making the pre-trained model larger helped even on downstream tasks with very little labeled data. The important condition is <em>pre-trained</em>. A small task dataset isn't being asked to teach the entire model language from scratch.</p>
+
+  <p>That connects neatly to my <a href="foundation-models.html">Foundation Models post</a>. “One model adapted to many tasks” becomes much more concrete here: a reusable starting point, then a relatively small amount of task-specific supervision. Reading BERT makes that workflow feel tangible.</p>
+
+  <h2>Cheat Sheet: The Terms I Kept Mixing Up</h2>
+
+  <div class="concept"><b>Contextual representation</b>A token's vector depends on the text around it. “Bank” doesn't need the same representation in a loan application and a story about ducks.</div>
+  <div class="concept"><b>MLM vs. NSP</b>Recover original tokens at selected positions vs. classify whether a text segment actually followed another. Two pre-training assignments.</div>
+  <div class="concept"><b>Self-supervised vs. supervised</b>In self-supervised pre-training, targets come from the text and sampling process. In downstream fine-tuning, task annotations supply the labels.</div>
+  <div class="concept"><b>Feature-based vs. fine-tuned</b>Reuse a fixed model's representations vs. update its weights for the task. Both can start from the same pre-trained model.</div>
+
+  <div class="summary">
+    <h2>What I'm Taking Away</h2>
+    <ul>
+      <li>For interpreting an existing input, both sides of a token can carry useful evidence. BERT lets that information interact through the stack.</li>
+      <li>Masking creates a learning problem where context matters. The source text supplies the answers.</li>
+      <li>An encoder can have a prediction head. Architecture and training objective are separate ideas.</li>
+      <li>Fine-tuning adapts the reader itself; freezing it makes representations reusable for other experiments.</li>
+    </ul>
+  </div>
+
+  <div class="closing">My favorite shift from reading this paper: I started by asking what BERT could predict. I ended up asking what it was allowed to see, and where its answers came from. Those two questions make the whole design much easier to understand.</div>
+
+  <p class="source-note">Paper: Jacob Devlin, Ming-Wei Chang, Kenton Lee, and Kristina Toutanova, <a href="https://aclanthology.org/N19-1423/">BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding</a>, NAACL 2019 (first released in 2018). The examples here are illustrative, not model outputs. Scores describe the paper's experiments, not a current leaderboard.</p>
+</article>
+<p class="paper-link">Original paper: <a href="https://aclanthology.org/N19-1423/">https://aclanthology.org/N19-1423/</a></p>
+</body>
+</html>

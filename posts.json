@@ -22,5 +22,13 @@
     "tag": "Paper Notes · AI",
     "date": "2026-10-28",
     "date_display": "October 2026 · 11 min read"
+  },
+  {
+    "slug": "bert",
+    "title": "BERT: Learning to Read by Filling in the Blanks (and Why Both Sides Matter)",
+    "subtitle": "I thought I understood what “bidirectional” meant. Then BERT made me rethink masking, encoders, and where training labels actually come from.",
+    "tag": "Paper Notes · AI",
+    "date": "2026-11-02",
+    "date_display": "November 2026 · 11 min read"
   }
 ]
