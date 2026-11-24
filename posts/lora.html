@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LoRA: Teaching a Giant Model a New Trick Without Moving All Its Weights · Gina's Paper Notes</title>
+<meta name="description" content="Two small matrices, one frozen model, and a surprisingly big idea. I followed LoRA&#x27;s future-work questions into 2026 to see which ones grew up, and which still deserve an experiment.">
+<style>
+  .site-nav { max-width: 680px; margin: 0 auto 28px; font-family: system-ui, sans-serif; font-size: 13px; }
+  .site-nav a { color: #4361ee; text-decoration: none; }
+  .site-nav a:hover { text-decoration: underline; }
+  .paper-link { max-width: 680px; margin: 0 auto 0; font-family: system-ui, sans-serif; font-size: 13px; }
+</style>
+</head>
+<body>
+<nav class="site-nav"><a href="../index.html">&larr; All paper notes</a></nav>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #fafaf8;
+    font-family: 'Georgia', serif;
+    color: #1a1a1a;
+    padding: 40px 20px;
+  }
+  .post {
+    max-width: 680px;
+    margin: 0 auto;
+  }
+  .tag {
+    font-family: system-ui, sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: #4361ee;
+    margin-bottom: 14px;
+  }
+  h1 {
+    font-size: 32px;
+    font-weight: 700;
+    line-height: 1.25;
+    margin-bottom: 12px;
+    color: #111;
+  }
+  .subtitle {
+    font-size: 18px;
+    color: #555;
+    font-style: italic;
+    margin-bottom: 20px;
+    line-height: 1.5;
+  }
+  .meta {
+    font-family: system-ui, sans-serif;
+    font-size: 12px;
+    color: #aaa;
+    margin-bottom: 36px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #e5e5e5;
+  }
+  p {
+    font-size: 17px;
+    line-height: 1.8;
+    margin-bottom: 22px;
+    color: #222;
+  }
+  h2 {
+    font-size: 22px;
+    font-weight: 700;
+    margin: 40px 0 14px;
+    color: #111;
+  }
+  h3 {
+    font-family: system-ui, sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    margin: 28px 0 10px;
+    color: #333;
+  }
+  ul, ol {
+    margin: 0 0 22px 24px;
+  }
+  li {
+    font-size: 17px;
+    line-height: 1.75;
+    margin-bottom: 8px;
+    color: #222;
+  }
+  .callout {
+    background: #eef2ff;
+    border-left: 4px solid #4361ee;
+    border-radius: 0 8px 8px 0;
+    padding: 14px 18px;
+    margin: 24px 0;
+    font-size: 16px;
+    line-height: 1.7;
+    color: #1e3a8a;
+  }
+  .aside {
+    background: #fff8e6;
+    border-left: 4px solid #f2a900;
+    border-radius: 0 8px 8px 0;
+    padding: 14px 18px;
+    margin: 24px 0;
+    font-size: 16px;
+    line-height: 1.7;
+    color: #6b4a00;
+  }
+  .concept {
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin: 14px 0;
+    font-size: 15px;
+    line-height: 1.7;
+    border: 1px solid #e5e5e5;
+  }
+  .concept b {
+    font-family: system-ui, sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: #4361ee;
+    display: block;
+    margin-bottom: 4px;
+  }
+  .concept ul { margin: 6px 0 0 20px; }
+  .concept li { font-size: 15px; margin-bottom: 2px; }
+  .summary {
+    background: #111;
+    color: #eee;
+    border-radius: 10px;
+    padding: 20px 22px;
+    margin: 28px 0;
+  }
+  .summary h2 { color: #fff; margin-top: 0; }
+  .summary li { color: #ddd; font-size: 16px; }
+  .closing {
+    margin-top: 40px;
+    padding-top: 24px;
+    border-top: 1px solid #e5e5e5;
+    font-size: 15px;
+    color: #666;
+    font-style: italic;
+    line-height: 1.8;
+  }
+  code {
+    font-family: monospace;
+    background: #f1f5f9;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 14px;
+    color: #334155;
+  }
+</style>
+<style>
+  .post a { color: #4361ee; text-underline-offset: 3px; }
+  .formula { background: #f1f5f9; border-radius: 8px; padding: 16px 18px; margin: 22px 0; font-family: ui-monospace, monospace; font-size: 15px; line-height: 1.9; color: #334155; overflow-x: auto; }
+  .formula small { font-family: system-ui, sans-serif; font-size: 13px; }
+  .paths { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 22px 0 10px; font-family: system-ui, sans-serif; }
+  .path { background: #fff; border: 1px solid #e5e5e5; border-top: 3px solid #999; border-radius: 8px; padding: 16px; font-size: 15px; line-height: 1.7; }
+  .path.trainable { border-top-color: #4361ee; background: #eef2ff; }
+  .path strong, .path span { display: block; }
+  .path span { font-size: 13px; color: #555; margin-top: 6px; }
+  .merge { text-align: center; font-family: system-ui, sans-serif; font-size: 14px; line-height: 1.7; padding: 12px; background: #f1f5f9; border-radius: 8px; margin-bottom: 22px; }
+  .table-wrap { overflow-x: auto; margin: 22px 0; }
+  table { width: 100%; border-collapse: collapse; font-family: system-ui, sans-serif; font-size: 14px; line-height: 1.6; }
+  caption { text-align: left; font-weight: 700; margin-bottom: 10px; color: #333; }
+  th, td { padding: 11px; border-bottom: 1px solid #e5e5e5; text-align: left; vertical-align: top; }
+  th { background: #eef2ff; color: #1e3a8a; }
+  .source-note { font-family: system-ui, sans-serif; font-size: 13px; line-height: 1.7; color: #666; }
+  .status { font-family: system-ui, sans-serif; font-size: 13px; font-weight: 700; color: #4361ee; display: block; margin-bottom: 10px; }
+  .reading-list li { margin-bottom: 16px; }
+  .reading-list .detail { display: block; color: #555; font-size: 15px; }
+  .summary ul { margin-bottom: 0; }
+  @media (max-width: 520px) {
+    h1 { font-size: 28px; }
+    .paths { grid-template-columns: 1fr; }
+    th, td { padding: 9px 7px; }
+    .formula { font-size: 13px; padding: 12px; }
+  }
+</style>
+
+<article class="post">
+  <div class="tag">Paper Notes · AI</div>
+  <h1>LoRA: Teaching a Giant Model a New Trick Without Moving All Its Weights</h1>
+  <div class="subtitle">Two small matrices, one frozen model, and a surprisingly big idea. I followed LoRA's future-work questions into 2026 to see which ones grew up, and which still deserve an experiment.</div>
+  <div class="meta">November 2026 &nbsp;·&nbsp; 16 min read</div>
+
+  <p>In my <a href="bert.html">BERT post</a>, fine-tuning meant updating the reader itself. That sounds perfectly reasonable until the reader has billions of parameters and you want a different version for every task. Suddenly, “just fine-tune it” starts sounding like “just buy another GPU.” Very helpful, thank you.</p>
+
+  <p><em>LoRA: Low-Rank Adaptation of Large Language Models</em>, by Edward J. Hu and colleagues, asks whether adapting a model really requires changing that many independent things. The paper first appeared in 2021 and was published at ICLR 2022. Its central move is wonderfully economical: freeze the existing weights and learn a small, structured correction. (<a href="https://arxiv.org/abs/2106.09685">Original paper</a>.)</p>
+
+  <p>What grabbed me in my notes wasn't just the memory saving. It was the possibility that a model can know an enormous amount while needing only a few new directions to use that knowledge differently.</p>
+
+  <h2>The Model Is Huge. Does the Change Have to Be?</h2>
+
+  <p>Picture a giant mixing desk. Pre-training has already set thousands of controls to produce a useful sound. A downstream task might need a different balance, without requiring every control to move independently. LoRA bets that a small number of coordinated adjustments can often do the job.</p>
+
+  <p>That is an intuition about the <strong>change</strong>, not a claim that the whole model is simple. My notes connect it to research on low intrinsic dimensionality: useful solutions may be reachable inside a much smaller space than the raw parameter count suggests. LoRA turns that motivation into a concrete constraint on weight updates.</p>
+
+  <div class="concept"><b>Rank, without the ceremony</b>A matrix's rank counts its independent directions. A rank-8 update can coordinate changes across thousands of input and output coordinates, but those changes must pass through at most eight independent intermediate directions.</div>
+
+  <p>Low intrinsic dimension and low matrix rank are related motivations, not interchangeable mathematical statements. LoRA's low-rank design is a hypothesis we can test. It doesn't follow automatically from the model having a useful small subspace.</p>
+
+  <h2>The Entire Trick Fits in One Equation</h2>
+
+  <p>Take a weight matrix <code>W₀</code> with <code>d_out</code> rows and <code>d_in</code> columns. Ordinary fine-tuning can learn an unrestricted change to that matrix. LoRA instead learns two smaller matrices:</p>
+
+  <div class="formula">
+    A: r × d_in &nbsp;&nbsp; B: d_out × r<br>
+    ΔW = (α / r) BA<br>
+    h = W₀x + (α / r) B(Ax)
+  </div>
+
+  <p><code>A</code> maps the input into an <code>r</code>-dimensional space; <code>B</code> maps it back to the output size. The product has rank at most <code>r</code>. The factor <code>α/r</code> controls the update's scale; when writing <code>W′ = W₀ + BA</code>, we're simply leaving that scale implicit.</p>
+
+  <div class="paths" aria-label="LoRA has a frozen base path and a trainable low-rank path receiving the same input">
+    <div class="path"><strong>Base path: x → W₀ → W₀x</strong><span>Keep the pre-trained weight matrix frozen.</span></div>
+    <div class="path trainable"><strong>Update path: x → A → B → scaled BAx</strong><span>Train these two small matrices for the downstream task.</span></div>
+  </div>
+  <div class="merge">Add the two outputs → the adapted layer's output, h</div>
+
+  <p>There is no activation function between <code>A</code> and <code>B</code> in this update. That linear structure matters: it lets us fold the correction into the original weight later. The paper initializes <code>A</code> randomly and <code>B</code> to zero, so training starts with a zero correction and the base model's original behavior. (<a href="https://arxiv.org/html/2106.09685v2#S4.SS1">Section 4.1</a>.)</p>
+
+  <h3>A small calculation made the saving click for me</h3>
+
+  <p>For one square <code>4,096 × 4,096</code> matrix, full fine-tuning trains <strong>16,777,216 parameters</strong>. With <code>r = 8</code>, LoRA trains <code>8 × 4,096 + 4,096 × 8 = 65,536</code>. That's <strong>256 times fewer trainable parameters for this matrix</strong>. The original 16.8 million weights still exist; we just aren't optimizing them.</p>
+
+  <p>The general count is <code>r(d_in + d_out)</code> per adapted matrix. For <code>M</code> square matrices of width <code>d</code>, it becomes <code>2Mdr</code>. Here <code>M</code> counts matrices, not Transformer blocks: adapting query and value in every block gives two adapted matrices per block.</p>
+
+  <div class="aside">A detail I want to keep straight: fewer trainable parameters does not mean the same reduction in total VRAM or training time. We still run the base model, and gradients still need to travel through its computation to reach the adapters. We save the frozen weights' gradients and optimizer state, not the entire cost of using them.</div>
+
+  <h2>Why Not Add Adapters or Tune the Prompt?</h2>
+
+  <p>My notes compare two other routes: add task-specific modules, or learn continuous prompt/prefix vectors while keeping the main model fixed. These are useful alternatives with different costs.</p>
+
+  <div class="table-wrap">
+    <table>
+      <caption>Three ways to adapt a frozen model</caption>
+      <thead><tr><th scope="col">Method</th><th scope="col">What learns</th><th scope="col">What to watch</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">Bottleneck adapters</th><td>Small inserted networks, usually down-project → activation → up-project.</td><td>Sequential adapter computation can add inference latency.</td></tr>
+        <tr><th scope="row">Prompt / prefix tuning</th><td>Continuous vectors that steer the model through its input or attention context.</td><td>Virtual positions add attention work and can consume the available sequence budget, depending on implementation.</td></tr>
+        <tr><th scope="row">LoRA</th><td>A low-rank correction to selected existing weight matrices.</td><td>A fixed correction can be merged into the base weight; live adapter switching has different serving costs.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>An adapter with input/output width <code>d</code> and bottleneck width <code>b</code> has <code>2db + b + d</code> parameters if both projections include biases. That looks similar to LoRA's <code>2dr</code>, but a similar parameter count doesn't make the computation identical. The adapter's nonlinearity prevents the same simple weight merge.</p>
+
+  <p>For merged LoRA, inference just uses <code>W_merged = W₀ + (α/r)BA</code>. Same matrix shape, same kind of matrix multiplication. This is the specific condition behind the paper's no-added-latency claim. Keeping multiple unmerged adapters available for different requests can require additional kernels and routing. Quantized deployment also needs care when merging and re-quantizing.</p>
+
+  <p>The original GPT-3 experiments reported roughly a threefold reduction in training memory and around a 25% training speedup relative to their full fine-tuning setup. Those are results for that configuration, not a promise about every model or GPU. (<a href="https://arxiv.org/html/2106.09685v2#S4.SS2">Section 4.2</a>.)</p>
+
+  <h2>Where Do You Put Those Two Matrices?</h2>
+
+  <p>The original study mainly adapts attention projections, leaving the feed-forward MLP frozen. Queries and keys determine attention scores; values supply the information being combined. Changing different projections gives the model different ways to adapt.</p>
+
+  <p>I had written “query + value works best” in my notes. The more useful lesson is about the budget. In the paper's GPT-3 comparison, spreading a fixed number of parameters across query and value is stronger than putting them all into either one alone. But adapting all four attention projections ties query + value on WikiSQL and scores higher on MultiNLI. So this isn't a universal decree that keys and output projections don't matter. (<a href="https://arxiv.org/html/2106.09685v2#S7.SS1">Table 5</a>.)</p>
+
+  <p>Likewise, very small ranks can work competitively in the experiments without being sufficient for every task. The top singular directions learned at ranks 8 and 64 overlap substantially; weaker directions overlap less. My reading is that increasing capacity sometimes gives you more variations around the same important adjustment, rather than a completely new useful skill.</p>
+
+  <p>The paper also finds that the correction can amplify directions that are present but relatively weak in the pre-trained weights. The mixing-desk analogy becomes tempting here: turn up a useful channel. But that is an interpretation of spectral evidence, not proof that each singular vector corresponds to a human-readable concept. (<a href="https://arxiv.org/html/2106.09685v2#S7.SS2">Sections 7.2</a> and <a href="https://arxiv.org/html/2106.09685v2#S7.SS3">7.3</a>.)</p>
+
+  <h2>“Just Combine the Adapters” Has a Catch</h2>
+
+  <p>One question in my notes is especially practical. Suppose one adapter learns SQL and another learns a writing style. Which one should answer a request for an SQL explanation in that style?</p>
+
+  <p>We can add their weight updates, but addition doesn't guarantee that their behaviors will cooperate. Even the algebra deserves a second look:</p>
+
+  <div class="formula">
+    Desired sum: B₁A₁ + B₂A₂<br>
+    (B₁ + B₂)(A₁ + A₂)<br>
+    = B₁A₁ + B₂A₂ + B₁A₂ + B₂A₁
+  </div>
+
+  <p>Adding the factors creates extra cross terms. Concatenating factors can represent the exact sum, but its rank budget can grow to <code>r₁ + r₂</code>. And even an exact sum of updates can produce unwanted interactions once it passes through the rest of a nonlinear network. “Two adapters fit in memory” and “two skills compose correctly” are different achievements.</p>
+
+  <p>This question has already inspired research. <a href="https://arxiv.org/abs/2307.13269">LoraHub</a> explores composing previously trained LoRA modules for new tasks with a few examples. That is a useful starting point, not evidence that arbitrary adapters can be mixed safely or that an unseen combination will work without evaluation.</p>
+
+  <h2>LoRA's Future Work, Revisited in November 2026</h2>
+
+  <p>The original paper ends with four directions; its methods section also leaves MLPs, LayerNorm, and biases for later. I followed all five threads. The status below means there is concrete follow-up work, not that the whole problem is solved. The proposed experiments are my reading of worthwhile next steps, not claims that nobody has attempted related work.</p>
+
+  <h3>1. Go beyond the attention projections</h3>
+  <span class="status">Explored: MLPs, biases, and normalization all have evidence.</span>
+
+  <p><a href="https://arxiv.org/html/2305.14314v1#S4">QLoRA (2023)</a> finds that adapting all linear Transformer-block layers, including the MLP, is important for matching full fine-tuning in its LLaMA-7B/Alpaca comparison. <a href="https://arxiv.org/abs/2106.10199">BitFit</a>, contemporary work first released in 2021 and published at ACL 2022, studies bias-only tuning of BERT. <a href="https://arxiv.org/abs/2312.11420">Tuning LayerNorm in Attention</a> (2023 preprint; ICLR 2024) studies normalization tuning for multimodal adaptation. These address the broader parameter-choice question; bias and LayerNorm tuning aren't themselves low-rank matrix updates.</p>
+
+  <p><strong>What I'd still explore:</strong> under a fixed GPU-hour budget, when should a newer model spend its adaptation capacity on attention, MLPs, or normalization? I'd compare attention-only LoRA, all-linear LoRA, and LoRA plus normalization tuning, while measuring both task quality and retention of general abilities. A result on BERT or a particular multimodal setup doesn't settle that choice for every architecture.</p>
+
+  <h3>2. Combine LoRA with other efficient methods</h3>
+  <span class="status">Demonstrated: combinations exist; their benefits depend on the setup.</span>
+
+  <p>This wasn't entirely left for the future: <a href="https://arxiv.org/html/2106.09685v2#A5">LoRA's own Appendix E</a> already tests a combination with prefix tuning. <a href="https://aclanthology.org/2022.acl-long.433/">UniPELT (ACL 2022)</a> combines LoRA, prefix tuning, and adapters with learned gates. QLoRA pairs low-rank training with a frozen 4-bit base model, reducing the memory occupied by the base weights as well.</p>
+
+  <p><strong>What I'd still explore:</strong> which combination gives the best quality at the deployment latency you can actually afford? I'd hold the data and training budget fixed, then compare merged LoRA, a gated hybrid, and quantized LoRA on the same workload. A hybrid that wins on trainable parameter count can still lose on response time. The appealing target is complementary improvements that survive an end-to-end measurement.</p>
+
+  <h3>3. Understand what fine-tuning actually changes</h3>
+  <span class="status">Partly explained: stronger empirical and theoretical tools, no universal account.</span>
+
+  <p><a href="https://arxiv.org/abs/2410.21228">LoRA vs Full Fine-tuning: An Illusion of Equivalence</a> (2024 preprint; NeurIPS 2025) identifies new prominent singular directions, called <em>intruder dimensions</em>, in LoRA-adapted weights. Its interventions connect those directions to forgetting in the tested settings. Matching downstream accuracy can therefore hide different internal changes.</p>
+
+  <p>For a fresh 2026 perspective, <a href="https://arxiv.org/abs/2605.19018">Zindari, Mulayoff, and Stich's May preprint</a> analyzes LoRA versus full fine-tuning in linear regression. It identifies regimes where low-rank task differences favor LoRA's generalization. That's a precise explanation under a simplified model, with supporting practical experiments, rather than a theorem covering every Transformer.</p>
+
+  <p><strong>What I'd still explore:</strong> can we predict harmful forgetting before deployment? I'd track spectral changes through training, intervene on suspicious directions, and check whether those interventions preserve both the new task and older capabilities. The test should include sequential adaptation, where today's useful correction can become tomorrow's interference.</p>
+
+  <h3>4. Choose matrices and ranks more systematically</h3>
+  <span class="status">Active research: adaptive allocation exists, and 2026 work connects rank to data.</span>
+
+  <p><a href="https://arxiv.org/abs/2303.10512">AdaLoRA (2023)</a> allocates a parameter budget across weight matrices using importance scores, rather than assigning every matrix the same rank. This is a concrete answer to part of the placement-and-budget question, though it remains an adaptive scoring method rather than a universal optimality guarantee.</p>
+
+  <p>An October 2026 preprint, <a href="https://arxiv.org/abs/2610.06542">A Fine-Grained Analysis of the LoRA Fine-Tuning Landscape with Implications for Data Selection</a>, links sufficient rank to data-dependent optimization geometry through a condition called LoRA-RIP. Its theory treats a single adapted matrix under explicit assumptions; its limitations section leaves joint multi-layer theory and larger generative fine-tuning for further study.</p>
+
+  <p><strong>What I'd still explore:</strong> choose the training examples and rank allocation together. I'd compare uniform ranks, AdaLoRA, and a data-aware allocation at equal total cost, including the cost of selecting data. Better data coverage might make a smaller adapter work better, but I would want that demonstrated on long-form generation before treating it as a general recipe.</p>
+
+  <h3>5. Is the original weight matrix compressible too?</h3>
+  <span class="status">Explored as compression research; low-rank updates alone don't establish it.</span>
+
+  <p>This is where I had to correct my notes. <strong>A low-rank ΔW does not imply a low-rank W₀.</strong> An identity matrix has full rank; adding a rank-1 correction doesn't turn that fact into evidence of redundancy. Adaptation asks how many directions need to change. Compression asks how much of the existing computation we can remove.</p>
+
+  <p><a href="https://arxiv.org/abs/2403.07378">SVD-LLM (2024)</a> and <a href="https://arxiv.org/abs/2503.12340">SVD-LLM V2 (2025)</a> study low-rank compression of LLM weights while accounting for the effect of truncation on model behavior. Their existence supports pursuing compression, not concluding that every pre-trained matrix is exactly rank-deficient.</p>
+
+  <p><strong>What I'd still explore:</strong> allocate compression rank and adaptation rank jointly. I'd compare compress-then-adapt against adapt-then-compress, measuring quality, peak memory, and actual inference latency. The two ranks solve different problems, so forcing them to share one budget rule seems like a question to investigate rather than an obvious shortcut.</p>
+
+  <div class="callout"><strong>The experiment I'd start with:</strong> a fixed-budget study of data coverage and rank allocation, followed by a forgetting check. It connects the 2026 theory to a decision a small lab actually faces: should the next GPU hour buy a larger adapter, a better selection of examples, or a different set of adapted layers?</div>
+
+  <h2>Cheat Sheet: The Distinctions I Want to Keep</h2>
+
+  <div class="concept"><b>Low-rank update vs. low-rank model</b>LoRA constrains the correction. The frozen base matrix can still have full rank, and its storage doesn't disappear.</div>
+  <div class="concept"><b>Rank vs. where you adapt</b>Increasing rank gives one update more capacity. Adapting another matrix gives the model a different place to change. Compare them under an explicit budget.</div>
+  <div class="concept"><b>Parameter efficiency vs. system efficiency</b>Count trainable weights, but also measure activations, optimizer state, training time, and serving latency.</div>
+  <div class="concept"><b>LoRA vs. COMPACTER</b><a href="https://arxiv.org/abs/2106.04647">COMPACTER (2021)</a> makes adapter layers compact using sums of Kronecker products with shared components and low-rank task-specific factors. It is related structured parameterization, with a different adapter architecture.</div>
+
+  <div class="summary">
+    <h2>What I'm Taking Away</h2>
+    <ul>
+      <li>A huge pre-trained model can sometimes adapt through a small number of coordinated weight changes.</li>
+      <li>LoRA's practical elegance comes from training small factors and merging a fixed linear correction for inference.</li>
+      <li>MLP adaptation, hybrid tuning, adaptive rank allocation, and weight compression have all been explored.</li>
+      <li>The questions still worth testing concern when those methods work, how they interact, and what they preserve.</li>
+    </ul>
+  </div>
+
+  <p class="closing">I started with “how do we avoid updating billions of weights?” I ended up with “which changes does this task actually need?” That feels like the deeper gift of LoRA: it makes an expensive adaptation problem small enough to inspect, challenge, and experiment with.</p>
+
+  <p class="source-note">Based on my LoRA reading notes and the linked primary papers. Follow-up research checked through November 24, 2026. Historical results describe their reported experiments. The two 2026 theory papers are cited as preprints; proposed experiments above are suggestions, not new results.</p>
+
+  <h2>Next on My Reading List</h2>
+  <p>If I were reading onward from LoRA, I'd take this route. Each paper answers a question from the notes rather than simply adding another acronym to the collection.</p>
+
+  <ol class="reading-list">
+    <li><a href="https://arxiv.org/abs/2305.14314">QLoRA: Efficient Finetuning of Quantized LLMs</a> — Dettmers et al., 2023.<span class="detail">Start here for the practical combination of frozen 4-bit weights and LoRA, including the importance of adapting more than query and value.</span></li>
+    <li><a href="https://arxiv.org/abs/2303.10512">AdaLoRA: Adaptive Budget Allocation for Parameter-Efficient Fine-Tuning</a> — Zhang et al., 2023.<span class="detail">Then ask how to distribute a limited rank budget across matrices.</span></li>
+    <li><a href="https://arxiv.org/abs/2610.06542">A Fine-Grained Analysis of the LoRA Fine-Tuning Landscape with Implications for Data Selection</a> — Zhang et al., October 2026 preprint.<span class="detail">The current bridge from rank selection to data geometry. Read the single-matrix assumptions and Appendix F alongside the results.</span></li>
+    <li><a href="https://arxiv.org/abs/2605.19018">LoRA vs. Full Fine-Tuning: A Theoretical Perspective</a> — Zindari, Mulayoff, and Stich, May 2026 preprint.<span class="detail">A clean linear-regression setting for understanding when restricting the update can help generalization.</span></li>
+    <li><a href="https://arxiv.org/abs/2410.21228">LoRA vs Full Fine-tuning: An Illusion of Equivalence</a> — Shuttleworth et al., NeurIPS 2025; first posted 2024.<span class="detail">For spectral changes, forgetting, and why similar scores need not mean similar learned solutions.</span></li>
+    <li><a href="https://aclanthology.org/2022.acl-long.433/">UniPELT: A Unified Framework for Parameter-Efficient Language Model Tuning</a> — Mao et al., ACL 2022.<span class="detail">For learned combinations of LoRA, prefix tuning, and adapters.</span></li>
+    <li><a href="https://arxiv.org/abs/2106.10199">BitFit: Simple Parameter-efficient Fine-tuning for Transformer-based Masked Language-models</a> — Ben-Zaken et al., ACL 2022; first posted 2021; and <a href="https://arxiv.org/abs/2312.11420">Tuning LayerNorm in Attention: Towards Efficient Multi-Modal LLM Finetuning</a> — Zhao et al., ICLR 2024; first posted 2023.<span class="detail">Read together to challenge the assumption that adaptation must concentrate on large weight matrices.</span></li>
+    <li><a href="https://arxiv.org/abs/2403.07378">SVD-LLM: Truncation-aware Singular Value Decomposition for Large Language Model Compression</a> — Wang et al., 2024; followed by <a href="https://arxiv.org/abs/2503.12340">SVD-LLM V2</a> — Wang et al., 2025.<span class="detail">For the separate problem of compressing the base model and choosing which singular directions to discard.</span></li>
+    <li><a href="https://arxiv.org/abs/2307.13269">LoraHub: Efficient Cross-Task Generalization via Dynamic LoRA Composition</a> — Huang et al., first posted 2023.<span class="detail">For the two-adapters-one-request question: reuse existing modules for a new task.</span></li>
+    <li><a href="https://arxiv.org/abs/2106.04647">Compacter: Efficient Low-Rank Hypercomplex Adapter Layers</a> — Karimi Mahabadi, Henderson, and Ruder, 2021.<span class="detail">An optional detour into Kronecker products and another way to make task-specific parameters small.</span></li>
+  </ol>
+</article>
+<p class="paper-link">Original paper: <a href="https://arxiv.org/abs/2106.09685">https://arxiv.org/abs/2106.09685</a></p>
+</body>
+</html>
